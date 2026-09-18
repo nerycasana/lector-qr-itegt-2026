@@ -1,9 +1,186 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#b71c1c"><title>Lector QR ITEGT 2026</title><script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script><style>:root{font-family:Arial,Helvetica,sans-serif}*{box-sizing:border-box}body{margin:0;background:#f1f3f5;color:#222}.header{background:linear-gradient(135deg,#b71c1c,#e53935);color:#fff;text-align:center;padding:20px 14px}.header h1{margin:0;font-size:25px}.header p{margin:7px 0 0;font-size:14px}.wrap{max-width:620px;margin:auto;padding:14px}.card{background:#fff;border-radius:20px;padding:17px;margin-bottom:14px;box-shadow:0 5px 22px rgba(0,0,0,.12)}#reader{width:100%;border-radius:16px;overflow:hidden;background:#111}button{width:100%;border:0;border-radius:12px;padding:15px;margin-top:10px;font-size:17px;font-weight:700}.start{background:#c62828;color:#fff}.stop{background:#ececec;color:#222}.manual input{width:100%;padding:14px;border:1px solid #bbb;border-radius:10px;font-size:17px}.manual button{background:#444;color:#fff}#result{display:none;border-radius:18px;padding:20px;text-align:center}.ok{background:#e8f5e9;border:2px solid #43a047}.warn{background:#fff3e0;border:2px solid #fb8c00}.bad{background:#ffebee;border:2px solid #e53935}.icon{font-size:55px}.title{font-size:27px;font-weight:800;margin:7px 0}.message{font-size:20px;font-weight:700}.note{font-size:13px;color:#666;line-height:1.5}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#f7f7f7;border-radius:14px;padding:14px;text-align:center}.stat b{display:block;font-size:27px;margin-top:4px}#permission{font-size:14px;color:#8a1c1c;margin-top:10px;display:none}.footer{text-align:center;color:#777;font-size:12px;padding:8px}</style></head><body><header class="header"><h1>CONTROL DE INGRESO ITEGT</h1><p>LECTOR QR • IV FESTIVAL INTERINSTITUCIONAL 2026</p></header><main class="wrap"><section class="card"><h2 style="text-align:center;margin-top:4px">📷 Lector QR</h2><p class="note">Pulsa «INICIAR LECTOR», concede permiso para usar la cámara y apunta al código QR de la tarjeta.</p><div id="reader"></div><div id="permission"></div><button id="startBtn" class="start" onclick="startScanner()">INICIAR LECTOR QR</button><button id="stopBtn" class="stop" style="display:none" onclick="stopScanner()">DETENER CÁMARA</button><div id="result"></div></section><section class="card manual"><h3>⌨️ Validación manual</h3><p class="note">Úsalo solamente si el QR está dañado o la cámara no logra leerlo.</p><input id="manualCode" placeholder="ITEGT2026-00001" autocomplete="off"><button onclick="validateManual()">VALIDAR CÓDIGO</button></section><section class="card"><h3>📊 Sesión actual</h3><div class="stats"><div class="stat">Escaneados<b id="scanned">0</b></div><div class="stat">Válidos<b id="valid">0</b></div></div><p class="note">Estos contadores corresponden únicamente a esta sesión. El registro oficial queda en Google Sheets.</p></section><div class="footer">Instituto Técnico Eulogio Galeano Trejo<br>Santa Bárbara, Honduras</div></main><script>
-const VALIDATOR_URL="https://script.google.com/macros/s/AKfycbwdhH8GfVgJKU5R0-tXZox_wYI1_soARbxsF_sSTkGtfxOfpyipBFkTZXT9plM4c_CnAw/exec";let qrScanner=null,busy=false,scanned=0;
-function startScanner(){if(qrScanner)return;if(!window.isSecureContext){showResult("bad","SITIO NO SEGURO","El lector necesita abrirse mediante HTTPS.");return}qrScanner=new Html5Qrcode("reader");qrScanner.start({facingMode:{ideal:"environment"}},{fps:10,qrbox:function(w,h){const s=Math.floor(Math.min(w,h)*.72);return{width:s,height:s}},aspectRatio:1},onScanSuccess,function(){}).then(function(){startBtn.style.display="none";stopBtn.style.display="block";permission.style.display="none"}).catch(function(){qrScanner=null;permission.style.display="block";permission.textContent="No se pudo abrir la cámara. Revisa el permiso de cámara del navegador y que esta página esté en HTTPS.";showResult("bad","CÁMARA NO DISPONIBLE","Concede el permiso de cámara y vuelve a pulsar INICIAR LECTOR.")})}
-function stopScanner(){if(!qrScanner)return;qrScanner.stop().then(function(){qrScanner.clear();qrScanner=null;startBtn.style.display="block";stopBtn.style.display="none"}).catch(function(){qrScanner=null;startBtn.style.display="block";stopBtn.style.display="none"})}
-function onScanSuccess(decodedText){if(busy)return;busy=true;scanned++;document.getElementById("scanned").textContent=scanned;stopScanner();const codigo=extractCode(decodedText);if(!codigo){busy=false;showResult("bad","QR NO RECONOCIDO","El código no tiene el formato esperado.");return}setTimeout(function(){window.location.href=VALIDATOR_URL+"?codigo="+encodeURIComponent(codigo)},250)}
-function validateManual(){if(busy)return;const text=document.getElementById("manualCode").value.trim();if(!text){showResult("bad","FALTA EL CÓDIGO","Escribe un código de tarjeta.");return}busy=true;scanned++;document.getElementById("scanned").textContent=scanned;window.location.href=VALIDATOR_URL+"?codigo="+encodeURIComponent(extractCode(text))}
-function extractCode(text){text=String(text||"").trim();try{const u=new URL(text);const code=u.searchParams.get("codigo");if(code)return code.trim()}catch(e){}return text}
-function showResult(cls,title,message){const box=document.getElementById("result");box.className=cls;box.style.display="block";const icon=cls==="ok"?"✓":cls==="warn"?"⚠":"✕";box.innerHTML='<div class="icon">'+icon+'</div><div class="title">'+esc(title)+'</div><div class="message">'+esc(message)+'</div>'}function esc(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#039;")}
-</script></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c62828">
+<title>Control de Ingreso ITEGT - Lector QR</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f1f3f5;color:#222}
+  header{background:#c62828;color:#fff;text-align:center;padding:24px 14px}
+  header h1{margin:0;font-size:29px} header p{margin:8px 0 0;font-size:18px}
+  .card{background:#fff;margin:18px auto;padding:22px;border-radius:22px;max-width:720px;box-shadow:0 3px 16px #0002}
+  h2{margin:0 0 12px;text-align:center}
+  button{width:100%;border:0;border-radius:15px;padding:17px;margin:7px 0;font-size:19px;font-weight:700;cursor:pointer}
+  .primary{background:#c62828;color:white}.secondary{background:#eee;color:#222}
+  #readerWrap{display:none;margin-top:15px}
+  video{width:100%;display:block;border-radius:16px;background:#111;min-height:220px;object-fit:cover}
+  canvas{display:none}
+  #status{padding:14px;border-radius:12px;background:#f8f8f8;margin-top:12px;text-align:center;font-weight:600}
+  .ok{background:#e8f5e9!important;color:#1b5e20}.err{background:#ffebee!important;color:#8e1b1b}
+  input{width:100%;padding:16px;border:2px solid #ccc;border-radius:12px;font-size:18px}
+  .small{font-size:14px;color:#666;line-height:1.45}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>CONTROL DE INGRESO ITEGT</h1>
+  <p>LECTOR QR • IV FESTIVAL INTERINSTITUCIONAL 2026</p>
+</header>
+
+<section class="card">
+  <h2>📷 Lector QR</h2>
+  <p>Este lector usa directamente la cámara del iPhone. Pulsa iniciar y permite el acceso a la cámara.</p>
+
+  <div id="status">Listo para iniciar.</div>
+
+  <button class="primary" id="startBtn">INICIAR LECTOR QR</button>
+  <button class="secondary hidden" id="stopBtn">DETENER CÁMARA</button>
+
+  <div id="readerWrap">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <p class="small">
+    Si Safari no permite abrir la cámara, utiliza la opción de fotografía del QR que aparece abajo.
+  </p>
+</section>
+
+<section class="card">
+  <h2>📸 Escanear QR mediante fotografía</h2>
+  <p>Alternativa para iPhone si la cámara en vivo no está disponible. Toma una foto del código QR y el sistema intentará leerlo.</p>
+  <input id="photo" type="file" accept="image/*" capture="environment">
+</section>
+
+<section class="card">
+  <h2>⌨️ Validación manual</h2>
+  <p>Introduce el código de la tarjeta cuando el QR esté dañado o no pueda leerse.</p>
+  <input id="code" placeholder="ITEGT2026-00001" autocomplete="off">
+  <button class="primary" id="manualBtn">VALIDAR TARJETA</button>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+const BACKEND = "https://script.google.com/macros/s/AKfycbwdhH8GfVgJKU5R0-tXZox_wYI1_soARbxsF_sSTkGtfxOfpyipBFkTZXT9plM4c_CnAw/exec";
+const startBtn=document.getElementById("startBtn");
+const stopBtn=document.getElementById("stopBtn");
+const video=document.getElementById("video");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d",{willReadFrequently:true});
+const wrap=document.getElementById("readerWrap");
+const status=document.getElementById("status");
+let stream=null, timer=null, busy=false;
+
+function setStatus(msg, cls=""){status.textContent=msg;status.className=cls}
+
+function extractCode(value){
+  value=String(value||"").trim();
+  try{
+    const u=new URL(value);
+    const c=u.searchParams.get("codigo");
+    if(c) return c.trim();
+  }catch(e){}
+  const m=value.match(/ITEGT2026-\d{5}/i);
+  return m ? m[0].toUpperCase() : value;
+}
+
+function goToValidation(raw){
+  const code=extractCode(raw);
+  if(!/^ITEGT2026-\d{5}$/i.test(code)){
+    setStatus("QR detectado, pero no contiene un código ITEGT válido: "+code,"err");
+    return;
+  }
+  stopCamera();
+  setStatus("Código detectado: "+code+" • abriendo validación…","ok");
+  setTimeout(()=>{ window.location.href=BACKEND+"?codigo="+encodeURIComponent(code); },250);
+}
+
+async function startCamera(){
+  if(!window.isSecureContext){
+    setStatus("ERROR: esta página no está en HTTPS.","err"); return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    setStatus("Este navegador no ofrece acceso a la cámara. Usa Safari actualizado o la opción de fotografía.","err"); return;
+  }
+  try{
+    setStatus("Solicitando permiso de cámara…");
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},
+      audio:false
+    });
+    video.srcObject=stream;
+    await video.play();
+    wrap.style.display="block";
+    startBtn.classList.add("hidden");
+    stopBtn.classList.remove("hidden");
+    setStatus("Cámara activa. Apunta al código QR.");
+    timer=requestAnimationFrame(scanFrame);
+  }catch(err){
+    console.error(err);
+    let msg="No se pudo abrir la cámara.";
+    if(err.name==="NotAllowedError" || err.name==="PermissionDeniedError")
+      msg="Permiso de cámara denegado. En iPhone: Ajustes → Safari → Cámara → Permitir; luego recarga esta página.";
+    else if(err.name==="NotFoundError")
+      msg="No se encontró una cámara disponible.";
+    else if(err.name==="NotReadableError")
+      msg="La cámara está siendo utilizada por otra aplicación. Cierra otras apps que usen la cámara e inténtalo de nuevo.";
+    else if(err.name==="SecurityError")
+      msg="Safari bloqueó el acceso por seguridad. Verifica que la dirección empiece por https://.";
+    setStatus(msg,"err");
+  }
+}
+
+function scanFrame(){
+  if(!stream || video.readyState<2){timer=requestAnimationFrame(scanFrame);return;}
+  if(video.videoWidth && video.videoHeight){
+    canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code=window.jsQR ? jsQR(img.data,img.width,img.height,{inversionAttempts:"attemptBoth"}) : null;
+    if(code && code.data && !busy){
+      busy=true; goToValidation(code.data); return;
+    }
+  }
+  timer=requestAnimationFrame(scanFrame);
+}
+
+function stopCamera(){
+  if(timer) cancelAnimationFrame(timer);
+  timer=null;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  video.srcObject=null;
+  stopBtn.classList.add("hidden");
+  startBtn.classList.remove("hidden");
+}
+
+startBtn.addEventListener("click",startCamera);
+stopBtn.addEventListener("click",()=>{stopCamera();setStatus("Cámara detenida.");});
+
+document.getElementById("manualBtn").addEventListener("click",()=>{
+  const code=extractCode(document.getElementById("code").value);
+  if(!/^ITEGT2026-\d{5}$/i.test(code)){setStatus("Escribe un código como ITEGT2026-00001.","err");return;}
+  window.location.href=BACKEND+"?codigo="+encodeURIComponent(code.toUpperCase());
+});
+
+document.getElementById("photo").addEventListener("change",async e=>{
+  const file=e.target.files[0]; if(!file)return;
+  if(!window.jsQR){setStatus("No se cargó el lector de imágenes. Revisa tu conexión a Internet.","err");return;}
+  const img=new Image();
+  img.onload=()=>{
+    const max=1800, scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    canvas.width=Math.round(img.naturalWidth*scale);canvas.height=Math.round(img.naturalHeight*scale);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    const data=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code=jsQR(data.data,data.width,data.height,{inversionAttempts:"attemptBoth"});
+    if(code&&code.data) goToValidation(code.data);
+    else setStatus("No se encontró un QR en la fotografía. Toma otra foto con el código completo y bien enfocado.","err");
+    URL.revokeObjectURL(img.src);
+  };
+  img.src=URL.createObjectURL(file);
+});
+</script>
+</body>
+</html>
